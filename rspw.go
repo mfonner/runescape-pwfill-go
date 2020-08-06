@@ -19,6 +19,8 @@ import (
 
 func main() {
 
+	// TODO: Add log retention, value should be configurable in config.ini
+
 	logger.InfoLogger.Println("Reading config file")
 	cfg, err := ini.Load("config.ini")
 	if err != nil {
@@ -39,10 +41,11 @@ func main() {
 		needsLaunched = true
 	}
 
+	// RuneScape is not running so launch it
 	if needsLaunched == true {
 
-		// RuneScape is not running so launch it
 		logger.InfoLogger.Println("Current installPath value from config:", cfg.Section("config").Key("installPath").String())
+
 		cmd := exec.Command(cfg.Section("config").Key("installPath").String())
 		cmd.Stdout = os.Stdout
 		cmd.Stderr = os.Stderr
@@ -63,14 +66,17 @@ func main() {
 		// Searching for pid again now that RuneScape is running
 		fpid, err = robotgo.FindIds("rs2client")
 		if len(fpid) == 0 {
-			logger.ErrorLogger.Println("PID not found after launching RuneScape, exiting")
+			logger.ErrorLogger.Println("PID not found after launching RuneScape, exiting with error", err)
 			os.Exit(1)
 		}
+
+		logger.InfoLogger.Println("Application loaded, found RuneScape PID:", fpid)
 	}
+
+	logger.InfoLogger.Println("RuneScape PID found:", fpid)
 
 	// Grabbing the PID of the launcher
 	// This might not be needed?
-	logger.InfoLogger.Println("Application loaded, found RuneScape PID:", fpid)
 	pidExist, err := robotgo.PidExists(fpid[0])
 	if err != nil {
 		logger.ErrorLogger.Println("Error retrieving PID from ", fpid)
@@ -80,10 +86,25 @@ func main() {
 	// Setting the RuneScape launcher as our active window
 	// Typing RS password into the window
 	if pidExist {
+
+		if needsLaunched == true {
+			// Since RuneScape needed launching, we need to grab the rspw PID
+			// This will be used later to set rspw as the active window for password input
+			rspwPID, err := robotgo.FindIds("rspw")
+			if len(fpid) == 0 {
+				logger.ErrorLogger.Println("PID for rspw not found, error:", err)
+			}
+
+			logger.InfoLogger.Println("rspw PID found:", rspwPID)
+
+			// Setting rspw as the active window
+			// This handles making the user alt+tab back to rspw if RuneScape needed launching
+			robotgo.ActivePID(rspwPID[0])
+		}
+
 		logger.InfoLogger.Println("Initiating retrieval from KeePass")
-		// TODO: Ensure rspw is the active window here
-		// this way the user doesn't have to alt tab if RuneScape wasn't running when rspw was launched
 		logger.InfoLogger.Println("Current databasePath value from config:", cfg.Section("config").Key("databasePath").String())
+
 		rsPass := retrievePass(cfg.Section("config").Key("databasePath").String())
 		logger.InfoLogger.Println("Data retrieved from KeePass")
 
