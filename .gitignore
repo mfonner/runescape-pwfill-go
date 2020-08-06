@@ -17,3 +17,6 @@
 # Build files for Windows
 rspw.ico
 versioninfo.json
+resource_windows_amd64.syso
+resource_windows_386.syso
+rspw.log

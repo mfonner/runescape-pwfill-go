@@ -14,13 +14,17 @@ import (
 	"github.com/go-vgo/robotgo"
 	"github.com/tobischo/gokeepasslib"
 	"golang.org/x/crypto/ssh/terminal"
+	"gopkg.in/ini.v1"
 )
 
 func main() {
 
-	// TODO: Add more verbose logs
-	// TODO: Launch RuneScape if not already running
-	// TODO: Create a ini file to get paths from, this will help support non-default installs
+	logger.InfoLogger.Println("Reading config file")
+	cfg, err := ini.Load("config.ini")
+	if err != nil {
+		logger.ErrorLogger.Println("Failed to read config file: ", err)
+		os.Exit(1)
+	}
 
 	// Checking if our RuneScape launcher is running
 	logger.InfoLogger.Println("Searching for RuneScape PID")
@@ -28,6 +32,7 @@ func main() {
 	// Handling if RuneScape isn't running
 	needsLaunched := false
 
+	// Searching for RuneScape PID in case it's already running
 	fpid, err := robotgo.FindIds("rs2client")
 	if len(fpid) == 0 {
 		logger.ErrorLogger.Println("PID not found, attempting to launch RuneScape")
@@ -37,9 +42,8 @@ func main() {
 	if needsLaunched == true {
 
 		// RuneScape is not running so launch it
-		// TODO: put this path in the ini file as it might not be default on every installation
-		logger.InfoLogger.Println("Launching RuneScape")
-		cmd := exec.Command("C:\\Program Files\\Jagex\\RuneScape Launcher\\RuneScape.exe")
+		logger.InfoLogger.Println("Current installPath value from config:", cfg.Section("config").Key("installPath").String())
+		cmd := exec.Command(cfg.Section("config").Key("installPath").String())
 		cmd.Stdout = os.Stdout
 		cmd.Stderr = os.Stderr
 		// cmd.Start() does not wait for the process to end (cmd.Run() does)
@@ -49,8 +53,12 @@ func main() {
 			os.Exit(1)
 		}
 
-		// Waiting for RuneScape to launch
-		time.Sleep(3 * time.Second)
+		logger.InfoLogger.Println("RuneScape launched, waiting for the application to load")
+
+		// Reading waitTime value and using that value to wait for RuneScape to launch
+		waitTime := cfg.Section("config").Key("waitTime").MustInt64()
+		logger.InfoLogger.Println("Current waitTime value from config:", waitTime)
+		time.Sleep(time.Duration(waitTime) * time.Second)
 
 		// Searching for pid again now that RuneScape is running
 		fpid, err = robotgo.FindIds("rs2client")
@@ -62,7 +70,7 @@ func main() {
 
 	// Grabbing the PID of the launcher
 	// This might not be needed?
-	logger.InfoLogger.Println("Found RuneScape PID:", fpid)
+	logger.InfoLogger.Println("Application loaded, found RuneScape PID:", fpid)
 	pidExist, err := robotgo.PidExists(fpid[0])
 	if err != nil {
 		logger.ErrorLogger.Println("Error retrieving PID from ", fpid)
@@ -75,16 +83,20 @@ func main() {
 		logger.InfoLogger.Println("Initiating retrieval from KeePass")
 		// TODO: Ensure rspw is the active window here
 		// this way the user doesn't have to alt tab if RuneScape wasn't running when rspw was launched
-		rsPass := retrievePass()
+		logger.InfoLogger.Println("Current databasePath value from config:", cfg.Section("config").Key("databasePath").String())
+		rsPass := retrievePass(cfg.Section("config").Key("databasePath").String())
+		logger.InfoLogger.Println("Data retrieved from KeePass")
 
 		logger.InfoLogger.Println("Setting RuneScape as active window")
 		robotgo.ActivePID(fpid[0])
 
 		robotgo.TypeStr(rsPass)
+
+		logger.InfoLogger.Println("Process completed, closing rspw")
 	}
 }
 
-func retrievePass() (passOut string) {
+func retrievePass(databasePath string) (passOut string) {
 
 	// Prompting for user password and hiding Stdin
 	fmt.Print("password: ")
@@ -95,8 +107,7 @@ func retrievePass() (passOut string) {
 
 	password := string(bytePassword)
 
-	// TODO: Add this path to the ini file
-	file, err := os.Open("C:\\Users\\matth\\Documents\\rs.kdbx")
+	file, err := os.Open(databasePath)
 	if err != nil {
 		logger.ErrorLogger.Println("Error opening database")
 	}
