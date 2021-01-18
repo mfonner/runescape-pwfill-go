@@ -13,7 +13,7 @@ import (
 
 	"github.com/go-vgo/robotgo"
 	"github.com/tobischo/gokeepasslib"
-	"golang.org/x/crypto/ssh/terminal"
+    "golang.org/x/term" 
 	"gopkg.in/ini.v1"
 )
 
@@ -35,7 +35,7 @@ func main() {
 	needsLaunched := false
 
 	// Searching for RuneScape PID in case it's already running
-	fpid, err := robotgo.FindIds("rs2client")
+	fpid, err := robotgo.FindIds("RuneLite")
 	if len(fpid) == 0 {
 		logger.ErrorLogger.Println("PID not found, attempting to launch RuneScape")
 		needsLaunched = true
@@ -46,6 +46,14 @@ func main() {
 
 		logger.InfoLogger.Println("Current installPath value from config:", cfg.Section("config").Key("installPath").String())
 
+       
+        // The _JAVA_OPTIONS env variable moves the files that the OSRS launcher places in /home/$USER
+        // This isn't needed, but helps keeps the user's home directory nice and tidy
+        // TODO: Add this to the config file
+        rs_java_env := os.Setenv("_JAVA_OPTIONS", "-Duser.home=/home/matt/.jagex/")
+        if rs_java_env != nil {
+            logger.ErrorLogger.Println("Failed to set Java environment variables before launch. Error: ", rs_java_env)
+        }
 		cmd := exec.Command(cfg.Section("config").Key("installPath").String())
 		cmd.Stdout = os.Stdout
 		cmd.Stderr = os.Stderr
@@ -121,7 +129,7 @@ func retrievePass(databasePath string) (passOut string) {
 
 	// Prompting for user password and hiding Stdin
 	fmt.Print("password: ")
-	bytePassword, err := terminal.ReadPassword(int(syscall.Stdin))
+	bytePassword, err := term.ReadPassword(int(syscall.Stdin))
 	if err != nil {
 		logger.ErrorLogger.Println("Error reading password from stdin")
 	}
