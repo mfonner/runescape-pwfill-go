@@ -55,10 +55,20 @@ func main() {
         // The _JAVA_OPTIONS env variable moves the files that the OSRS launcher places in /home/$USER
         // This isn't needed, but helps keeps the user's home directory nice and tidy
         // TODO: Add this to the config file
-        rsJavaEnv := os.Setenv("_JAVA_OPTIONS", "-Duser.home=/home/matt/.jagex/")
-        if rsJavaEnv != nil {
-            logger.ErrorLogger.Println("Failed to set Java environment variables before launch. Error: ", rsJavaEnv)
+         
+        if cfg.Section("config").HasKey("javaEnv") && cfg.Section("config").Key("javaEnv").String() != "" {
+
+            logger.InfoLogger.Println("Java options found for RuneLite, setting those before continuing.")
+
+            rsJavaEnv := os.Setenv(cfg.Section("config").Key("javaEnv").String(), cfg.Section("config").Key("javaVal").String()) 
+
+            if rsJavaEnv != nil {
+                logger.ErrorLogger.Println("Failed to set Java environment variables before launch. Error: ", rsJavaEnv)
+            }
+
+            logger.InfoLogger.Println("Java environment variable set, launching RuneLite.")
         }
+
 
 		cmd := exec.Command(cfg.Section("config").Key("installPath").String())
 
@@ -83,6 +93,8 @@ func main() {
 		robotgo.KeyTap("enter")
 		time.Sleep( 1 * time.Second)
 		robotgo.TypeStr(rsPass)
+
+        logger.InfoLogger.Println("Process completed, exiting.")
 
 		// Searching for pid again now that RuneScape is running
 		fpid, err = robotgo.FindIds("RuneLite")
