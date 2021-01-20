@@ -7,6 +7,8 @@ If you're like me and use a password manager (which you really should be doing t
 
 This tool will allow you to read your password from a file or password manager and autofill this into the RS3 client.
 
+Linux support is now working with RuneLite for osrs! RS3 support is in the works.
+
 ### Requirements
 rspw requires Go 1.6 or above due to the [ini package](https://github.com/go-ini/ini) dependency
 
@@ -21,4 +23,4 @@ Note that root and general are folders in KeePass
 
 #### Known limitations
 * The Go version of this tool is working mainly in Windows at the moment
-* Linux support is being worked on
+* Linux support is currently in development
