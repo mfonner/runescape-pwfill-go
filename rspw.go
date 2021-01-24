@@ -20,6 +20,8 @@ import (
 func main() {
 
 	// TODO: Add log retention, value should be configurable in config.ini
+    // TODO: Add RuneScape type to config file (osrs vs RS3)
+    // This way, I can merge this all into master and programmitcally call the correct version
 
 	logger.InfoLogger.Println("Reading config file")
 	cfg, err := ini.Load("config.ini")
@@ -28,10 +30,16 @@ func main() {
 		os.Exit(1)
 	}
 
-	logger.InfoLogger.Println("Initiating retrieval from KeePass")
-	logger.InfoLogger.Println("Current databasePath value from config:", cfg.Section("config").Key("databasePath").String())
+    sec, err := cfg.GetSection("config")
+    if err != nil {
+        logger.ErrorLogger.Println("Error setting config scope to ", sec)
+        os.Exit(1)
+    }
 
-	rsPass := retrievePass(cfg.Section("config").Key("databasePath").String())
+	logger.InfoLogger.Println("Initiating retrieval from KeePass")
+	logger.InfoLogger.Println("Current databasePath value from config:", sec.Key("databasePath").String())
+
+	rsPass := retrievePass(sec.Key("databasePath").String())
 	logger.InfoLogger.Println("Data retrieved from KeePass")
 
 	// Checking if our RuneScape launcher is running
@@ -50,17 +58,16 @@ func main() {
 	// RuneScape is not running so launch it
 	if needsLaunched == true {
 
-		logger.InfoLogger.Println("Current installPath value from config:", cfg.Section("config").Key("installPath").String())
+		logger.InfoLogger.Println("Current installPath value from config:", sec.Key("installPath").String())
 
         // The _JAVA_OPTIONS env variable moves the files that the OSRS launcher places in /home/$USER
         // This isn't needed, but helps keeps the user's home directory nice and tidy
-        // TODO: Add this to the config file
          
-        if cfg.Section("config").HasKey("javaEnv") && cfg.Section("config").Key("javaEnv").String() != "" {
+        if sec.HasKey("javaEnv") && sec.Key("javaEnv").String() != "" {
 
             logger.InfoLogger.Println("Java options found for RuneLite, setting those before continuing.")
 
-            rsJavaEnv := os.Setenv(cfg.Section("config").Key("javaEnv").String(), cfg.Section("config").Key("javaVal").String()) 
+            rsJavaEnv := os.Setenv(sec.Key("javaEnv").String(), sec.Key("javaVal").String()) 
 
             if rsJavaEnv != nil {
                 logger.ErrorLogger.Println("Failed to set Java environment variables before launch. Error: ", rsJavaEnv)
@@ -70,7 +77,7 @@ func main() {
         }
 
 
-		cmd := exec.Command(cfg.Section("config").Key("installPath").String())
+		cmd := exec.Command(sec.Key("installPath").String())
 
 		// Suppressing the output of launching RuneLite
 		cmd.Stdout = nil
@@ -86,7 +93,7 @@ func main() {
 		logger.InfoLogger.Println("RuneScape launched, waiting for the application to load")
 
 		// Reading waitTime value and using that value to wait for RuneScape to launch
-		waitTime := cfg.Section("config").Key("waitTime").MustInt64()
+		waitTime := sec.Key("waitTime").MustInt64()
 		logger.InfoLogger.Println("Current waitTime value from config:", waitTime)
 		time.Sleep(time.Duration(waitTime) * time.Second)
 
