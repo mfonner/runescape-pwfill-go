@@ -20,8 +20,6 @@ import (
 func main() {
 
 	// TODO: Add log retention, value should be configurable in config.ini
-    // TODO: Add RuneScape type to config file (osrs vs RS3)
-    // This way, I can merge this all into master and programmitcally call the correct version
 
 	logger.InfoLogger.Println("Reading config file")
 	cfg, err := ini.Load("config.ini")
@@ -34,6 +32,15 @@ func main() {
     if err != nil {
         logger.ErrorLogger.Println("Error setting config scope to ", sec)
         os.Exit(1)
+    }
+   
+    // Setting the context of what RuneScape version we are launching
+    var rsPid string
+
+    if sec.Key("rsClient").String() == "RuneLite" {
+        rsPid = "RuneLite"
+    } else {
+        rsPid = "rs2client"
     }
 
 	logger.InfoLogger.Println("Initiating retrieval from KeePass")
@@ -49,7 +56,7 @@ func main() {
 	needsLaunched := false
 
 	// Searching for RuneScape PID in case it's already running
-	fpid, err := robotgo.FindIds("RuneLite")
+	fpid, err := robotgo.FindIds(rsPid)
 	if len(fpid) == 0 {
 		logger.ErrorLogger.Println("PID not found, attempting to launch RuneScape")
 		needsLaunched = true
@@ -97,14 +104,16 @@ func main() {
 		logger.InfoLogger.Println("Current waitTime value from config:", waitTime)
 		time.Sleep(time.Duration(waitTime) * time.Second)
 
-		robotgo.KeyTap("enter")
+        if rsPid == "RuneLite" {
+		    robotgo.KeyTap("enter")
+        }
 		time.Sleep( 1 * time.Second)
 		robotgo.TypeStr(rsPass)
 
         logger.InfoLogger.Println("Process completed, exiting.")
 
 		// Searching for pid again now that RuneScape is running
-		fpid, err = robotgo.FindIds("RuneLite")
+		fpid, err = robotgo.FindIds(rsPid)
 		if len(fpid) == 0 {
 			logger.ErrorLogger.Println("PID not found after launching RuneScape, exiting with error", err)
 			os.Exit(1)
@@ -141,13 +150,15 @@ func retrievePass(databasePath string) (passOut string) {
 	bytePassword, err := term.ReadPassword(int(syscall.Stdin))
 	if err != nil {
 		logger.ErrorLogger.Println("Error reading password from stdin")
+        os.Exit(1)
 	}
 
 	password := string(bytePassword)
 
 	file, err := os.Open(databasePath)
 	if err != nil {
-		logger.ErrorLogger.Println("Error opening database")
+		logger.ErrorLogger.Println("Error opening database,", err)
+        os.Exit(1)
 	}
 
 	db := gokeepasslib.NewDatabase()
