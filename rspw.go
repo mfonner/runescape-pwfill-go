@@ -119,28 +119,8 @@ func main() {
 			os.Exit(1)
 		}
 
-		//logger.InfoLogger.Println("Application loaded, found RuneScape PID:", fpid)
 	}
 
-	//logger.InfoLogger.Println("RuneScape PID found:", fpid)
-
-	// Grabbing the PID of the launcher
-	// This might not be needed?
-	//pidExist, err := robotgo.PidExists(fpid[0])
-	//if err != nil {
-	//	logger.ErrorLogger.Println("Error retrieving PID from ", fpid)
-	//}
-
-	// Grabbing the password from our KeePass db
-	// Setting the RuneScape launcher as our active window
-	// Typing RS password into the window
-	// TODO: Handle if RuneLite is already running
-	// Window switching isn't working yet in my testing
-	//if pidExist {
-    
-    //   switch active window here
-
-	//}
 }
 
 func retrievePass(databasePath string) (passOut string) {
