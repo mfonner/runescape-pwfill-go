@@ -1,5 +1,3 @@
-//go:generate goversioninfo -icon=rspw.ico -platform-specific
-
 package main
 
 import (
