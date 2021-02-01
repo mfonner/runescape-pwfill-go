@@ -28,6 +28,27 @@ func main() {
 		os.Exit(1)
 	}
 
+	sec, err := cfg.GetSection("config")
+	if err != nil {
+		logger.ErrorLogger.Println("Error setting config scope to ", err)
+		os.Exit(1)
+	}
+
+	// Setting the context of what RuneScape version we are launching
+	var rsPid string
+
+	if sec.Key("rsClient").String() == "RuneLite" {
+		rsPid = "RuneLite"
+	} else {
+		rsPid = "rs2client"
+	}
+
+	logger.InfoLogger.Println("Initiating retrieval from KeePass")
+	logger.InfoLogger.Println("Current databasePath value from config:", sec.Key("databasePath").String())
+
+	rsPass := retrievePass(sec.Key("databasePath").String())
+	logger.InfoLogger.Println("Data retrieved from KeePass")
+
 	// Checking if our RuneScape launcher is running
 	logger.InfoLogger.Println("Searching for RuneScape PID")
 
@@ -35,7 +56,7 @@ func main() {
 	needsLaunched := false
 
 	// Searching for RuneScape PID in case it's already running
-	fpid, err := robotgo.FindIds("rs2client")
+	fpid, err := robotgo.FindIds(rsPid)
 	if len(fpid) == 0 {
 		logger.ErrorLogger.Println("PID not found, attempting to launch RuneScape")
 		needsLaunched = true
@@ -44,9 +65,9 @@ func main() {
 	// RuneScape is not running so launch it
 	if needsLaunched == true {
 
-		logger.InfoLogger.Println("Current installPath value from config:", cfg.Section("config").Key("installPath").String())
+		logger.InfoLogger.Println("Current installPath value from config:", sec.Key("installPath").String())
 
-		cmd := exec.Command(cfg.Section("config").Key("installPath").String())
+		cmd := exec.Command(sec.Key("installPath").String())
 		cmd.Stdout = os.Stdout
 		cmd.Stderr = os.Stderr
 		// cmd.Start() does not wait for the process to end (cmd.Run() does)
@@ -59,12 +80,12 @@ func main() {
 		logger.InfoLogger.Println("RuneScape launched, waiting for the application to load")
 
 		// Reading waitTime value and using that value to wait for RuneScape to launch
-		waitTime := cfg.Section("config").Key("waitTime").MustInt64()
+		waitTime := sec.Key("waitTime").MustInt64()
 		logger.InfoLogger.Println("Current waitTime value from config:", waitTime)
 		time.Sleep(time.Duration(waitTime) * time.Second)
 
 		// Searching for pid again now that RuneScape is running
-		fpid, err = robotgo.FindIds("rs2client")
+		fpid, err = robotgo.FindIds(rsPid)
 		if len(fpid) == 0 {
 			logger.ErrorLogger.Println("PID not found after launching RuneScape, exiting with error", err)
 			os.Exit(1)
@@ -72,8 +93,6 @@ func main() {
 
 		logger.InfoLogger.Println("Application loaded, found RuneScape PID:", fpid)
 	}
-
-	logger.InfoLogger.Println("RuneScape PID found:", fpid)
 
 	// Grabbing the PID of the launcher
 	// This might not be needed?
@@ -102,15 +121,14 @@ func main() {
 			robotgo.ActivePID(rspwPID[0])
 		}
 
-		logger.InfoLogger.Println("Initiating retrieval from KeePass")
-		logger.InfoLogger.Println("Current databasePath value from config:", cfg.Section("config").Key("databasePath").String())
-
-		rsPass := retrievePass(cfg.Section("config").Key("databasePath").String())
-		logger.InfoLogger.Println("Data retrieved from KeePass")
-
 		logger.InfoLogger.Println("Setting RuneScape as active window")
 		robotgo.ActivePID(fpid[0])
+		time.Sleep(1 * time.Second)
 
+		if rsPid == "RuneLite" {
+			robotgo.KeyTap("enter")
+			time.Sleep(1 * time.Second)
+		}
 		robotgo.TypeStr(rsPass)
 
 		logger.InfoLogger.Println("Process completed, closing rspw")
@@ -130,7 +148,8 @@ func retrievePass(databasePath string) (passOut string) {
 
 	file, err := os.Open(databasePath)
 	if err != nil {
-		logger.ErrorLogger.Println("Error opening database")
+		logger.ErrorLogger.Println("Error opening database,", err)
+		os.Exit(1)
 	}
 
 	db := gokeepasslib.NewDatabase()
